@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseHTML } from 'linkedom';
-import { extractPage, extractOffer, fillInput } from '../src/browser.js';
+import { extractPage, extractOffer, applyRegionPreferences } from '../src/browser.js';
 
 function withDocument(html, fn) {
   const { document }=parseHTML(html);
@@ -26,14 +26,16 @@ test('missing card prices remain incomplete instead of becoming zero', () => {
   assert.equal(result.pricedCards,0);
 });
 
-test('ZIP input changes notify the application before the form is submitted',()=>{
-  withDocument('<html><body><form><input id="zip" value="90703"></form></body></html>',()=>{
-    let applicationValue='90703';
-    const input=document.querySelector('#zip');
-    input.addEventListener('input',()=>{applicationValue=input.value;});
-    fillInput({selector:'#zip',value:'91915'});
-    assert.equal(applicationValue,'91915');
-    assert.equal(input.value,'91915');
+test('location preferences only change the store and destination ZIP',()=>{
+  withDocument('<html><body></body></html>',()=>{
+    const writes=[];
+    Object.defineProperty(document,'cookie',{set:value=>writes.push(value),configurable:true});
+    applyRegionPreferences({storeId:'104',zip:'90250'});
+    assert.equal(writes.length,2);
+    assert.ok(writes[0].startsWith('locStoreId=104;'));
+    assert.ok(writes[1].startsWith('locDestZip=90250;'));
+    assert.throws(()=>applyRegionPreferences({storeId:'104; other=value',zip:'90250'}),/Invalid/);
+    assert.equal(writes.length,2);
   });
 });
 

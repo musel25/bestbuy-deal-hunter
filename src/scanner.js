@@ -1,5 +1,5 @@
 import { Chrome } from './chrome.js';
-import { extractPage, extractOffer } from './browser.js';
+import { extractPage, extractOffer, applyRegionPreferences } from './browser.js';
 import { discountPercent, normalizeObservation, mergeObservations, searchUrl } from './domain.js';
 
 export function validateLocation(actual,region) {
@@ -9,6 +9,16 @@ export function validateLocation(actual,region) {
 
 export function pageCoverage(page) {
   return {complete:page.noResults===true||(page.cards.length>0&&page.pricedCards===page.cards.length),priced:page.pricedCards,total:page.cards.length};
+}
+
+export function mergePageSnapshots(previous,next) {
+  const cards=next.cards.map((card,index)=>{
+    const old=previous?.cards?.[index];
+    if(old?.productId!==card.productId)return card;
+    const fields=Object.fromEntries(Object.entries(card).filter(([,value])=>value!==null&&value!==undefined&&value!==''));
+    return {...old,...fields,hasOptions:old.hasOptions||card.hasOptions};
+  });
+  return {...next,cards,pricedCards:cards.filter(c=>c.current!==null).length};
 }
 
 export function verifyNextUrl(url,query) {
@@ -26,27 +36,11 @@ export function classifyOffer(candidate,offer) {
 }
 
 export async function setRegion(chrome,region,timeout=30000) {
-  await chrome.go('https://www.bestbuy.com/site/store-locator');
-  await chrome.wait(()=>chrome.evaluate(()=>!!document.querySelector('input[placeholder="Search by ZIP, City or State"]')),timeout,'store locator');
-  await chrome.fill('input[placeholder="Search by ZIP, City or State"]',region.zip);
-  await chrome.evaluate(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.innerText.trim()==='Update');if(!b)throw new Error('Store locator Update button missing');b.click();return true;});
-  await chrome.wait(()=>chrome.evaluate(({storeId})=>[...document.querySelectorAll('.shop-location-card')].some(c=>[...c.querySelectorAll('a')].some(a=>a.getAttribute('href')?.match(/\/(\d+)$/)?.[1]===storeId)),region),timeout,'regional store results');
-  await chrome.evaluate(({storeId})=>{
-    const c=[...document.querySelectorAll('.shop-location-card')].find(c=>[...c.querySelectorAll('a')].some(a=>a.getAttribute('href')?.match(/\/(\d+)$/)?.[1]===storeId));
-    const b=[...c.querySelectorAll('button')].find(b=>/Make This Your Store/i.test(b.innerText));
-    if(b)b.click();return true;
-  },region);
-  await chrome.wait(()=>chrome.evaluate(name=>document.querySelector('button[aria-label^="Your Store:"]')?.getAttribute('aria-label')===`Your Store: ${name}`,region.name),timeout,'selected store');
+  await chrome.wait(()=>chrome.evaluate(()=>location.origin==='https://www.bestbuy.com'&&document.readyState==='complete'),timeout,'Best Buy session');
+  await chrome.evaluate(applyRegionPreferences,region);
 }
 
 export async function setShippingZip(chrome,zip,timeout=30000) {
-  const initial=await chrome.evaluate(extractPage);
-  if(initial.zip===zip)return;
-  await chrome.evaluate(()=>{const link=[...document.querySelectorAll('a')].find(a=>/^\d{5}$/.test(a.innerText.trim()));if(!link)throw new Error('Shipping ZIP control missing');link.click();return true;});
-  await chrome.wait(()=>chrome.evaluate(()=>!![...document.querySelectorAll('input')].find(e=>e.getBoundingClientRect().width&&/zip|postal/i.test(e.placeholder+' '+e.getAttribute('aria-label')+' '+e.id))),timeout,'shipping ZIP input');
-  const selector=await chrome.evaluate(()=>{const e=[...document.querySelectorAll('input')].find(e=>e.getBoundingClientRect().width&&/zip|postal/i.test(e.placeholder+' '+e.getAttribute('aria-label')+' '+e.id));if(e.id)return `[id=${JSON.stringify(e.id)}]`;e.setAttribute('data-deal-hunter-zip','true');return '[data-deal-hunter-zip="true"]';});
-  await chrome.fill(selector,zip);
-  await chrome.evaluate(()=>{const input=document.querySelector('[data-deal-hunter-zip="true"]')??[...document.querySelectorAll('input')].find(e=>e.getBoundingClientRect().width&&/zip|postal/i.test(e.placeholder+' '+e.getAttribute('aria-label')+' '+e.id));const scope=input.closest('form')??input.parentElement.parentElement;const b=[...scope.querySelectorAll('button')].find(b=>/^(Update|Apply|Save|Submit)$/i.test(b.innerText.trim()))??scope.querySelector('button[type="submit"]');if(!b)throw new Error('Shipping ZIP submit button missing');b.click();return true;});
   await chrome.wait(async()=>{const p=await chrome.evaluate(extractPage);return p.zip===zip;},timeout,'shipping ZIP update');
 }
 
@@ -61,9 +55,9 @@ async function readSearchPage(chrome,region,options) {
   while(Date.now()-started<timeout) {
     await chrome.evaluate(index=>{const cards=document.querySelectorAll('.product-list-item[data-product-id]');cards[index%Math.max(cards.length,1)]?.scrollIntoView({block:'center'});return true;},index++);
     await new Promise(resolve=>setTimeout(resolve,180));
-    page=await chrome.evaluate(extractPage);
+    page=mergePageSnapshots(page,await chrome.evaluate(extractPage));
     validateLocation(page,region);
-    if(pageCoverage(page).complete)break;
+    if(pageCoverage(page).complete&&index>=page.cards.length)break;
   }
   if(!page)throw new Error('Search page did not return data');
   return page;

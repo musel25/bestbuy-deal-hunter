@@ -17,7 +17,7 @@ Run a repeatable deal search when the user asks. Use code for the browser loop a
 
 ## Implementation choices
 
-Node.js 22+ with the official MCP SDK will call the existing local HTTP bridge. The installed bridge was tested at http://127.0.0.1:12306/mcp. Each call specifies a scan tab ID; unrelated tabs remain untouched. Readiness uses bounded polling and viewport scrolling. Page failures create diagnostic records instead of empty success reports. Use the website's Next link for pagination; do not assume an unverified results-per-page parameter works.
+Node.js 22+ with the official MCP SDK will call the existing local HTTP bridge. The installed bridge was tested at http://127.0.0.1:12306/mcp. Each call specifies a scan tab ID; unrelated tabs remain untouched. Set only the site's locStoreId and locDestZip preferences inside the browser, then verify the displayed store and ZIP. Do not read or export authentication cookies. Readiness uses bounded polling and viewport scrolling. Preserve observations from cards that unload after scrolling. Page failures create diagnostic records instead of empty success reports. Use the website's Next link for pagination; do not assume an unverified results-per-page parameter works.
 
 The default run rotates a small number of terms from each pool and uses two pages per term, in all three regions. CLI options allow an explicit term, all terms, page limits, and verification limits. Keep requests sequential. Record coverage and any limits in the report. Ignore heuristic price targets from the pasted model list; they were not verified. Hardware preferences guide search terms rather than excluding products.
 

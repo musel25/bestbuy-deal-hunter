@@ -1,6 +1,5 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { fillInput } from './browser.js';
 
 export function decodeToolResult(response) {
   if(response.isError) throw new Error(response.content?.find(c=>c.type==='text')?.text??'Chrome MCP tool failed');
@@ -10,7 +9,10 @@ export function decodeToolResult(response) {
   try {data=JSON.parse(block.text);} catch {throw new Error('Chrome MCP returned invalid JSON');}
   if(data.success===false) throw new Error(data.error??data.message??'Chrome MCP reported failure');
   if(typeof data.result==='string') {
-    try{return JSON.parse(data.result);}catch{throw new Error('Chrome MCP returned invalid JavaScript result');}
+    try{return JSON.parse(data.result);}catch{
+      if(/^[\s]*[\[{]/.test(data.result))throw new Error('Chrome MCP returned invalid or truncated JavaScript result');
+      return data.result;
+    }
   }
   return data.result??data;
 }
@@ -30,19 +32,24 @@ export class Chrome {
     return this.call('chrome_javascript',{tabId,code,maxOutputBytes:50000,timeoutMs:15000});
   }
   async createTab(url) {
-    // A unique fragment prevents Chrome MCP from reusing an existing user tab.
-    const target=`${url}${url.includes('#')?'&':'#'}deal-hunter-${crypto.randomUUID()}`;
-    const result=await this.call('chrome_navigate',{url:target,background:false});
+    const before=await this.call('get_windows_and_tabs');
+    const existing=new Set(before.windows.flatMap(w=>w.tabs.map(t=>t.tabId)));
+    // Chrome MCP matches path + query but ignores fragments when reusing tabs.
+    const target=new URL(url==='about:blank'?'https://www.bestbuy.com/':url);
+    target.searchParams.set('deal_hunter_instance',crypto.randomUUID());
+    const result=await this.call('chrome_navigate',{url:target.href,background:false});
     if(!result.tabId) throw new Error('Chrome MCP did not create a tab');
+    if(existing.has(result.tabId)) throw new Error('Chrome MCP reused an existing tab; refusing to own it');
     this.ownedTabs.push(result.tabId);
     return result.tabId;
   }
   async go(url) {
     const target=new URL(url);
     if(target.origin!=='https://www.bestbuy.com') throw new Error('Refusing navigation outside Best Buy');
-    // Some Chrome MCP releases activate tabId without navigating it. Use the page.
-    await this.evaluate(url=>{globalThis.__dealHunterNavigating=true;setTimeout(()=>location.assign(url),0);return true;},url);
-    await this.wait(()=>this.evaluate(target=>!globalThis.__dealHunterNavigating&&location.pathname===target.pathname&&new URLSearchParams(location.search).get('st')===target.term&&document.readyState!=='loading', {pathname:target.pathname,term:target.searchParams.get('st')}),15000,'navigation');
+    const marker=crypto.randomUUID();
+    await this.evaluate(marker=>{globalThis.__dealHunterDocument=marker;return true;},marker);
+    await this.call('chrome_navigate',{tabId:this.tabId,url,background:false});
+    await this.wait(()=>this.evaluate(target=>globalThis.__dealHunterDocument!==target.marker&&location.pathname===target.pathname&&new URLSearchParams(location.search).get('st')===target.term&&document.readyState==='complete', {marker,pathname:target.pathname,term:target.searchParams.get('st')}),30000,'navigation');
   }
   async wait(read,timeout=30000,label='page data') {
     const end=Date.now()+timeout;
@@ -54,7 +61,6 @@ export class Chrome {
     }
     throw new Error(`Timed out waiting for ${label}${lastError?`: ${lastError.message}`:''}`);
   }
-  async fill(selector,value) {return this.evaluate(fillInput,{selector,value});}
   async blockResources(extensionId) {
     this.helperTab=await this.createTab(`chrome-extension://${extensionId}/options.html`);
     this.ruleId=90_000_000+Math.floor(Math.random()*9_000_000);

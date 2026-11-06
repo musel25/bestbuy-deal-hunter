@@ -1,13 +1,11 @@
 // These functions are serialized into the browser. Keep each one self-contained.
-export function fillInput({selector,value}) {
-  const input=document.querySelector(selector);
-  if(!input)throw new Error('Input was not found');
-  const setter=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input),'value')?.set;
-  if(setter)setter.call(input,value);else input.value=value;
-  const EventClass=input.ownerDocument.defaultView.Event;
-  input.dispatchEvent(new EventClass('input',{bubbles:true}));
-  input.dispatchEvent(new EventClass('change',{bubbles:true}));
-  return input.value===value;
+export function applyRegionPreferences({storeId,zip}) {
+  if(!/^\d+$/.test(storeId)||!/^\d{5}$/.test(zip))throw new Error('Invalid store ID or ZIP');
+  // Location preferences only. Authentication data is neither read nor exported.
+  for(const [name,value]of [['locStoreId',storeId],['locDestZip',zip]]) {
+    document.cookie=`${name}=${value}; Domain=.bestbuy.com; Path=/; Secure; SameSite=Lax`;
+  }
+  return true;
 }
 
 export function extractPage() {
