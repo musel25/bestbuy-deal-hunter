@@ -104,6 +104,29 @@ test('blank scan tab uses an HTTP URL supported by Chrome MCP',async()=>{
   assert.deepEqual(chrome.ownedTabs,[88]);
 });
 
+test('creating scan and helper tabs never activates Chrome',async()=>{
+  const chrome=new Chrome();
+  const navigations=[];
+  chrome.call=async(name,args)=>{
+    if(name==='get_windows_and_tabs')return {windows:[{tabs:[{tabId:77}]}]};
+    navigations.push(args);
+    return {tabId:88+navigations.length};
+  };
+  await chrome.createTab('about:blank');
+  await chrome.createTab('chrome-extension://abcdefghijklmnopabcdefghijklmnop/options.html');
+  assert.ok(navigations.every(args=>args.background===true));
+});
+
+test('navigation stays in the background even when the helper is unavailable',async()=>{
+  const chrome=new Chrome();chrome.tabId=88;
+  let navigation;
+  chrome.evaluate=async()=>true;
+  chrome.wait=async read=>read();
+  chrome.call=async(name,args)=>{navigation=args;return {};};
+  await chrome.go('https://www.bestbuy.com/site/store-locator');
+  assert.equal(navigation.background,true);
+});
+
 test('navigation uses the native tab update when background page timers are suspended',async()=>{
   const chrome=new Chrome();chrome.tabId=88;
   let navigated=false;

@@ -6,7 +6,7 @@ When the user requests a deal search, run this repository's CLI. Do not drive ev
 
 1. Read config/search.json and README.md.
 2. Check that Chrome MCP is connected. Do not export cookies.
-3. Run npm run scan. If the user names terms, use --query for each term.
+3. Run npm run scan -- --estimate with the intended options. Give the user the estimated time range before starting. Then run npm run scan with the same options, without --estimate. If the user names terms, use --query for each term.
 4. Search all three regions unless the user explicitly requests a subset: Otay Ranch 91915, Costa Mesa 92626, Hawthorne 90250. Otay Ranch is the preferred store, not the only search region.
 5. Apply no website filters. Keep broad brand searches and specific premium laptop and desktop searches in the pool.
 6. Read the latest results/*.json and results/*.md. Exit status 2 is incomplete data, not proof that no deals exist.
@@ -15,6 +15,8 @@ When the user requests a deal search, run this repository's CLI. Do not drive ev
 9. Confirm cleanup restored Otay Ranch and removed temporary rules. Report any failure. Do not close user-owned tabs.
 
 The CLI handles rotation, extraction, resource blocking, pagination, deduplication, and local reports. If a live selector breaks, inspect only the affected scan page. Add a regression test before repairing logic. Do not retry indefinitely or claim a successful full scan after a partial run.
+
+Run searches silently. Never activate a scan tab, switch the user's active tab, or focus a browser window. All navigation and tab creation must use background mode. A helper failure does not authorize foreground automation. Preserve the user's active window and tab during setup, scanning, and cleanup. Report incomplete data if background rendering fails.
 
 For repository changes, use a topic branch. Run npm run check. Use Conventional Commits. Push every commit. Create a reviewable PR. Do not merge without authorization.
 

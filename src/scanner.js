@@ -121,6 +121,7 @@ export async function scan(options) {
   const chrome=options.chrome??new Chrome(options.endpoint);
   chrome.cancelled=options.shouldStop;
   const result={startedAt:new Date().toISOString(),queries:options.queries,regions:options.regions,
+    estimate:options.estimate,
     limits:{pages:options.pages,verifyLimit:options.verifyLimit,conditionLimit:options.conditionLimit,minDiscount:options.minDiscount??50},
     coverage:[],candidates:[],offers:[],errors:[],cleanup:{restoredPreferred:false},resourceBlocking:'disabled'};
   const log=options.log??(()=>{});

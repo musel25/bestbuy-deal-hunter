@@ -33,6 +33,9 @@ No separate browser, Selenium driver, Best Buy API key, or cookie file is requir
 # Rotate one term from each pool. Search all three regions.
 npm run scan
 
+# Show the plan and time range without controlling Chrome.
+npm run scan -- --estimate
+
 # Search explicit terms in all three regions.
 npm run scan -- --query "asus laptop" --query "legion tower"
 
@@ -72,7 +75,9 @@ Exit status 2 means errors or incomplete search pages. Available observations ar
 
 ## Browser behavior
 
-The scanner creates its own tabs and verifies their ownership. Chrome must remain open. With the installed extension helper, Chrome's debugger keeps the scan tab active for page rendering while it stays in the background. The same helper executes browser reads, so it does not compete with a second debugger connection. If that helper is unavailable, navigation activates the scan tab.
+The scanner creates its own tabs in the background and verifies their ownership. It does not activate scan/helper tabs or focus Chrome, including when the helper is unavailable. Chrome must remain open. With the installed extension helper, Chrome's debugger keeps the scan tab active for page rendering while it stays in the background. The same helper executes browser reads, so it does not compete with a second debugger connection. Without the helper, background pages can load more slowly and the scanner can report incomplete data.
+
+Before each run, the CLI prints a planning time range. Use --estimate to calculate it without contacting Chrome or changing the rotation state. Current estimates assume the full configured offer-check limit: about 2–4 minutes for one query with one page and one product check per region; 12–24 minutes for the normal rotating run; and about 35–70 minutes for the full pool. Fewer candidates can finish sooner. Slow pages and timeouts can take longer. These ranges use the observations in docs/live-test.md and include all three regions and each selected open-box condition.
 
 When supported, temporary Chrome request rules block images, fonts, and video in the scan tab. The installed Chrome MCP extension's own options tab controls those rules. Cleanup removes the rules, stops debugger emulation, and closes owned tabs. Extension files and global browser settings are not changed. The Linux native-host manifest can supply the extension ID. On other installations, use CHROME_MCP_EXTENSION_ID or --extension-id.
 

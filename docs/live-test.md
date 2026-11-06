@@ -38,6 +38,14 @@ All three observations were classified as price-only. No available deal was clai
 
 ## Repeat
 
+## Silent-run follow-up
+
+Tab creation and every navigation now request background mode, including helper-unavailable fallback. A live check captured the active tab before setup, after scan-tab creation, after helper setup, after navigation, and after cleanup. The active tab stayed unchanged at every stage. Background rendering emulation still worked and cleanup reported no errors. This check did not start a deal hunt or change the store preferences.
+
+The CLI now supports --estimate without contacting Chrome. Planning ranges count search pages, the per-region verification cap, and all selected open-box conditions. The normal 4-query/3-region/2-page run estimates 12–24 minutes when the full 8-product-per-region verification cap is used. A 1-query/3-region/1-page/1-product-per-region run estimates 2–4 minutes. The full 34-query pool estimates 36–69 minutes. These are planning estimates informed by earlier tests, not measured full-pool run times or upper time limits.
+
+## Repeat commands
+
 ```bash
 npm run check
 npm run smoke -- --pages 5

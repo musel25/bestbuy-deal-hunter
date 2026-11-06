@@ -9,12 +9,14 @@ import { scan, smokeAcceptance } from './scanner.js';
 import { selectQueries } from './domain.js';
 import { renderReport, isIncomplete } from './report.js';
 import { extractPage, extractOffer } from './browser.js';
+import { estimateRuntime } from './estimate.js';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
 const {values,positionals}=parseArgs({allowPositionals:true,options:{
   help:{type:'boolean',short:'h'},query:{type:'string',multiple:true},all:{type:'boolean'},pages:{type:'string'},
   verify:{type:'string'},timeout:{type:'string'},region:{type:'string',multiple:true},match:{type:'string'},
   'no-block':{type:'boolean'},'extension-id':{type:'string'},endpoint:{type:'string'},tab:{type:'string'},
+  estimate:{type:'boolean'},
 }});
 const command=positionals[0]??'scan';
 if(values.help) {
@@ -27,6 +29,7 @@ node src/cli.js inspect --tab ID     Read product data from one existing tab wit
 
 Options:
   --all                 Search the full configured pool
+  --estimate            Show a time estimate without opening or controlling Chrome
   --pages N             Pages per query and region (default: 2)
   --verify N            Products to verify per region (default: 8)
   --timeout MS          Page-data timeout (default: 30000)
@@ -59,19 +62,33 @@ const positive=(name,fallback)=>{
 const regions=values.region?config.regions.filter(r=>values.region.includes(r.id)):config.regions;
 if(!regions.length||values.region?.some(id=>!config.regions.some(r=>r.id===id)))throw new Error('Unknown --region; use otay-ranch, costa-mesa, or hawthorne');
 const directory=resolve(root,'results');
+const pages=positive('pages',config.defaults.pages);
+const verifyLimit=positive('verify',command==='smoke'?1:config.defaults.verifyLimit);
+const pageTimeoutMs=positive('timeout',config.defaults.pageTimeoutMs);
+async function planRun() {
+  let state={cursor:0};
+  try{state=JSON.parse(await readFile(join(directory,'state.json'),'utf8'));}catch{/* first run */}
+  const queries=values.query??(command==='smoke'?[config.smoke.query]:values.all?Object.values(config.pool).flat():selectQueries(config.pool,state.cursor,config.defaults.queriesPerType));
+  const estimate=estimateRuntime({queryCount:queries.length,regionCount:regions.length,pages,verifyLimit,conditionLimit:config.defaults.conditionLimit});
+  return {state,queries,estimate};
+}
+if(values.estimate) {
+  const {queries,estimate}=await planRun();
+  console.log(JSON.stringify({queries,regions:regions.map(({id,name,zip})=>({id,name,zip})),estimate},null,2));
+  process.exit(0);
+}
 await mkdir(directory,{recursive:true});
 const lockPath=join(directory,'.scan.lock');
 let lock;
 try {lock=await open(lockPath,'wx');await lock.writeFile(`${process.pid}\n`);}
 catch{throw new Error('Another scan may be running. Check results/.scan.lock before removing a stale lock.');}
 try {
-  let state={cursor:0};
-  try{state=JSON.parse(await readFile(join(directory,'state.json'),'utf8'));}catch{/* first run */}
+  // Real runs must select queries from the rotation state protected by this lock.
+  const {state,queries,estimate}=await planRun();
   let extensionId=values['extension-id']??process.env.CHROME_MCP_EXTENSION_ID;
   if(!extensionId) {
     try{const manifest=JSON.parse(await readFile(join(homedir(),'.config/google-chrome/NativeMessagingHosts/com.chromemcp.nativehost.json'),'utf8'));extensionId=manifest.allowed_origins?.[0]?.match(/^chrome-extension:\/\/([a-p]{32})\/$/)?.[1];}catch{/* optional optimization */}
   }
-  const queries=values.query??(command==='smoke'?[config.smoke.query]:values.all?Object.values(config.pool).flat():selectQueries(config.pool,state.cursor,config.defaults.queriesPerType));
   const stamp=new Date().toISOString().replaceAll(':','-').replaceAll('.','-');
   const filename=join(directory,`${stamp}-${command}`);
   let stop=false;
@@ -81,10 +98,10 @@ try {
     await writeFile(`${filename}.json`,JSON.stringify(result,null,2)+'\n');
     await writeFile(`${filename}.md`,renderReport(result));
   };
-  const result=await scan({...config.defaults,endpoint,allRegions:config.regions,regions,queries,
+  console.error(`Estimated time: ${estimate.minMinutes}–${estimate.maxMinutes} minutes. ${estimate.basis}`);
+  const result=await scan({...config.defaults,endpoint,allRegions:config.regions,regions,queries,estimate,
     preferences:{...config.preferences,premiumTerms:[...config.pool.laptops,...config.pool.productivity,...config.pool.desktops]},
-    extensionId,blockResources:!values['no-block'],pages:positive('pages',config.defaults.pages),
-    verifyLimit:positive('verify',command==='smoke'?1:config.defaults.verifyLimit),pageTimeoutMs:positive('timeout',config.defaults.pageTimeoutMs),
+    extensionId,blockResources:!values['no-block'],pages,verifyLimit,pageTimeoutMs,
     match:values.match??(command==='smoke'?config.smoke.match:undefined),save,log:message=>console.error(message),shouldStop:()=>stop});
   if(command==='smoke') {
     result.acceptance=smokeAcceptance(result,config.smoke.sku);

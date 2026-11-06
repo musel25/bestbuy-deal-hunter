@@ -42,7 +42,7 @@ export class Chrome {
     // Chrome MCP matches path + query but ignores fragments when reusing tabs.
     const target=new URL(url==='about:blank'?'https://www.bestbuy.com/':url);
     target.searchParams.set('deal_hunter_instance',crypto.randomUUID());
-    const result=await this.call('chrome_navigate',{url:target.href,background:false});
+    const result=await this.call('chrome_navigate',{url:target.href,background:true});
     if(!result.tabId) throw new Error('Chrome MCP did not create a tab');
     if(existing.has(result.tabId)) throw new Error('Chrome MCP reused an existing tab; refusing to own it');
     this.ownedTabs.push(result.tabId);
@@ -53,7 +53,7 @@ export class Chrome {
     if(target.origin!=='https://www.bestbuy.com') throw new Error('Refusing navigation outside Best Buy');
     const marker=crypto.randomUUID();
     await this.evaluate(marker=>{globalThis.__dealHunterDocument=marker;return true;},marker);
-    await this.call('chrome_navigate',{tabId:this.tabId,url,background:!!this.debugTabId});
+    await this.call('chrome_navigate',{tabId:this.tabId,url,background:true});
     await this.wait(()=>this.evaluate(target=>globalThis.__dealHunterDocument!==target.marker&&location.pathname===target.pathname&&new URLSearchParams(location.search).get('st')===target.term&&document.readyState==='complete', {marker,pathname:target.pathname,term:target.searchParams.get('st')}),30000,'navigation');
   }
   async wait(read,timeout=30000,label='page data') {
