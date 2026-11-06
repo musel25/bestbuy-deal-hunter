@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateLocation, pageCoverage, classifyOffer, verifyNextUrl, mergePageSnapshots, confirmPageChange, matchingOpenBoxLinks, smokeAcceptance } from '../src/scanner.js';
+import { validateLocation, pageCoverage, classifyOffer, verifyNextUrl, mergePageSnapshots, confirmPageChange, matchingOpenBoxLinks, smokeAcceptance, offerReady } from '../src/scanner.js';
 import { Chrome, decodeToolResult } from '../src/chrome.js';
 import { runInNewContext } from 'node:vm';
 
@@ -50,6 +50,23 @@ test('a verified discount requires Buy New, matching SKU, seller, and selected p
   assert.equal(classifyOffer(candidate,{...offer,available:false}).status,'price-only');
   assert.equal(classifyOffer(candidate,{...offer,seller:null}).status,'unverified');
   assert.equal(classifyOffer({...candidate,sku:null},offer).status,'unverified');
+});
+
+const completeOffer={sku:'6629420',store:'Hawthorne',price:1015.99,buyNew:2299.99,condition:'fair',seller:'Best Buy'};
+test('pickup loading text is not a finished availability result',()=>{
+  assert.equal(offerReady({...completeOffer,fulfillment:'Pickup Location\nSold by',available:false},15000,10000),false);
+});
+
+test('a temporary unavailable state must settle before a negative result is accepted',()=>{
+  const offer={...completeOffer,fulfillment:'Unavailable',available:false};
+  assert.equal(offerReady(offer,3000,2500),false);
+  assert.equal(offerReady(offer,9000,300),false);
+  assert.equal(offerReady(offer,9000,2500),true);
+});
+
+test('a resolved available offer can replace the loading state immediately',()=>{
+  assert.equal(offerReady({...completeOffer,fulfillment:'Pickup at Culver City\nReady in 1 hour\nOnly 1 left!',pickupStore:'Culver City',available:true},5000,0),true);
+  assert.equal(offerReady({...completeOffer,store:null,fulfillment:'Pickup at Culver City',available:true},5000,0),false);
 });
 
 test('pagination rejects filters, different terms, and external URLs',()=>{

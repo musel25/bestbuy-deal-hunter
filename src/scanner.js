@@ -62,6 +62,14 @@ export function classifyOffer(candidate,offer) {
     reason:valid?null:'Buy New, selected price, seller, condition, or matching SKU could not be verified'};
 }
 
+export function offerReady(offer,elapsedMs,stableMs) {
+  if(!offer.sku||!offer.store||!(offer.price>0)||!(offer.buyNew>0)||!offer.condition||offer.seller!=='Best Buy'||!offer.fulfillment)return false;
+  if(/\bPickup\s+Location\b/i.test(offer.fulfillment))return false;
+  if(offer.available)return true;
+  // The fulfillment service can replace an initial Unavailable state after loading.
+  return elapsedMs>=8000&&stableMs>=2000;
+}
+
 export async function setRegion(chrome,region,timeout=30000) {
   await chrome.wait(()=>chrome.evaluate(()=>location.origin==='https://www.bestbuy.com'&&document.readyState==='complete'),timeout,'Best Buy session');
   await chrome.evaluate(applyRegionPreferences,region);
@@ -109,7 +117,14 @@ export async function verifyCandidate(chrome,candidate,options) {
   for(const {url,sku} of links) {
     try {
       await chrome.go(url);
-      const detail=await chrome.wait(async()=>{const p=await chrome.evaluate(extractOffer);return p.price!==null&&p.buyNew!==null&&p.store&&p.fulfillment?p:false;},options.pageTimeoutMs,'open-box purchase panel and fulfillment');
+      const started=Date.now();
+      let previous,stableSince=started;
+      const detail=await chrome.wait(async()=>{
+        const p=await chrome.evaluate(extractOffer);
+        const signature=JSON.stringify([p.sku,p.store,p.price,p.buyNew,p.condition,p.fulfillment]);
+        if(signature!==previous){previous=signature;stableSince=Date.now();}
+        return offerReady(p,Date.now()-started,Date.now()-stableSince)?p:false;
+      },options.pageTimeoutMs,'settled open-box availability');
       if(detail.store!==candidate.regionName)throw new Error('Store changed during offer verification');
       verified.push({...candidate,...classifyOffer({...candidate,sku},detail),url});
     }catch(e){verified.push({...candidate,status:'unverified',condition:new URL(url).searchParams.get('condition'),reason:e.message,url});}

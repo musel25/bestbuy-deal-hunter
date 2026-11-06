@@ -2,6 +2,10 @@
 
 The test used the user's existing Chrome MCP session. No authentication cookies were exported. Test reports remain in ignored results/ files.
 
+Availability correction: the earlier negative observations below could be read before Best Buy finished loading fulfillment. A later fresh Hawthorne Fair page kept its Pickup Location placeholder for about five seconds, then showed one unit at Culver City for $1,015.99, ready in one hour. Treat the earlier Unavailable records as historical, unconfirmed negatives. The verifier now rejects that placeholder and waits for negative states to settle before accepting them.
+
+The corrected verifier was then run with resource blocking enabled for Fair condition in all three regions. Otay Ranch and Costa Mesa resolved to Unavailable. The Hawthorne region resolved to one Fair unit at Culver City, ready in one hour, with shipping unavailable. The price was $1,015.99 versus Buy New $2,299.99 (55.83% less). Cleanup restored Otay Ranch and reported no errors. The report uses the g14-availability prefix in results/. The negative-state timing guard is a practical settling interval, not proof that all future network updates will finish within it.
+
 ## Confirmed behavior
 
 - A normal Node.js MCP client can read the existing browser session. An initial extraction from an already loaded page took about 10 ms. This is not a full-search timing.
