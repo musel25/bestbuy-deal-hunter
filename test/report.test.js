@@ -12,3 +12,10 @@ test('report separates unverified minima and unavailable prices from verified de
   assert.ok(!report.includes('<sale>'));
   assert.match(report,/G14 &#124;/);
 });
+
+test('offers below the target discount are listed as near misses',()=>{
+  const result={startedAt:'2026-11-06',queries:[],regions:[],limits:{minDiscount:50},coverage:[],errors:[],candidates:[],cleanup:{},offers:[{name:'Below target',status:'verified',buyNew:2000,price:1200,discount:40,regionName:'Otay Ranch'}]};
+  const report=renderReport(result);
+  assert.ok(report.indexOf('## Near misses')>report.indexOf('## Verified available offers'));
+  assert.ok(report.indexOf('Below target')>report.indexOf('## Near misses'));
+});

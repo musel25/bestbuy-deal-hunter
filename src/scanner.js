@@ -1,5 +1,5 @@
 import { Chrome } from './chrome.js';
-import { extractPage, extractOffer, applyRegionPreferences } from './browser.js';
+import { extractPage, extractOffer, applyRegionPreferences, openBuyingOptions } from './browser.js';
 import { discountPercent, normalizeObservation, mergeObservations, searchUrl } from './domain.js';
 
 export function validateLocation(actual,region) {
@@ -8,16 +8,18 @@ export function validateLocation(actual,region) {
 }
 
 export function pageCoverage(page) {
-  return {complete:page.noResults===true||(page.cards.length>0&&page.pricedCards===page.cards.length),priced:page.pricedCards,total:page.cards.length};
+  return {complete:page.noResults===true||(page.cards.length>0&&page.cards.every(c=>c.current>0&&(!c.hasOptions||c.minimum>0))),priced:page.pricedCards,total:page.cards.length};
 }
 
 export function mergePageSnapshots(previous,next) {
-  const cards=next.cards.map((card,index)=>{
-    const old=previous?.cards?.[index];
-    if(old?.productId!==card.productId)return card;
+  const collected=new Map();
+  for(const card of [...(previous?.cards??[]),...next.cards]) {
+    const key=card.productId??card.url??card.name;
+    const old=collected.get(key)??{};
     const fields=Object.fromEntries(Object.entries(card).filter(([,value])=>value!==null&&value!==undefined&&value!==''));
-    return {...old,...fields,hasOptions:old.hasOptions||card.hasOptions};
-  });
+    collected.set(key,{...old,...fields,hasOptions:old.hasOptions||card.hasOptions});
+  }
+  const cards=[...collected.values()];
   return {...next,cards,pricedCards:cards.filter(c=>c.current!==null).length};
 }
 
@@ -28,9 +30,34 @@ export function verifyNextUrl(url,query) {
   }catch{return false;}
 }
 
+export function confirmPageChange(previous,next,expected) {
+  if(next.page!==expected)throw new Error(`Expected page ${expected}, got page ${next.page}`);
+  const signature=p=>[...new Set(p.cards.map(c=>c.productId))].sort().join('|');
+  if(previous&&signature(previous)===signature(next)&&!next.noResults)throw new Error('Page products are unchanged after pagination');
+}
+
+export function matchingOpenBoxLinks(candidate,offers) {
+  const found=new Map();
+  for(const offer of offers) {
+    const match=offer.path?.match(/^\/product\/[^/]+\/([^/]+)\/sku\/(\d+)\/openbox\/?$/);
+    if(!match||match[1]!==candidate.productKey)continue;
+    const u=new URL(offer.path,'https://www.bestbuy.com');
+    if(['fair','good','excellent'].includes(offer.condition))u.searchParams.set('condition',offer.condition);
+    found.set(u.href,{url:u.href,sku:match[2]});
+  }
+  return [...found.values()];
+}
+
+export function smokeAcceptance(result,sku) {
+  return result.regions.map(region=>({regionId:region.id,
+    found:result.candidates.some(c=>c.regionId===region.id),
+    verifiedPrice:result.offers.some(o=>o.regionId===region.id&&o.sku===sku&&['verified','price-only'].includes(o.status)),
+  }));
+}
+
 export function classifyOffer(candidate,offer) {
   const discount=discountPercent(offer.buyNew,offer.price);
-  const valid=discount!==null&&offer.seller==='Best Buy'&&!!offer.sku&&!!offer.condition&&(!candidate.sku||candidate.sku===offer.sku);
+  const valid=discount!==null&&offer.seller==='Best Buy'&&!!candidate.sku&&candidate.sku===offer.sku&&!!offer.condition;
   return {...offer,discount:valid?discount:null,status:valid?(offer.available?'verified':'price-only'):'unverified',
     reason:valid?null:'Buy New, selected price, seller, condition, or matching SKU could not be verified'};
 }
@@ -63,40 +90,26 @@ async function readSearchPage(chrome,region,options) {
   return page;
 }
 
-async function nextSearchPage(chrome,query) {
-  return chrome.evaluate(query=>{
-    const a=[...document.querySelectorAll('a')].find(a=>/^(Next|Next Page|Go to next page)$/i.test((a.getAttribute('aria-label')||a.innerText).trim()));
-    if(!a||a.getAttribute('aria-disabled')==='true')return false;
-    const u=new URL(a.href,location.href);
-    if(u.origin!=='https://www.bestbuy.com'||u.pathname!=='/site/searchpage.jsp'||u.searchParams.get('st')!==query||[...u.searchParams.keys()].some(k=>!['id','st','cp'].includes(k)))throw new Error('Next page contains unexpected filters or URL');
-    a.click();return true;
-  },query);
-}
-
 async function verifyCandidate(chrome,candidate,options) {
   await chrome.go(candidate.url);
   await chrome.wait(()=>chrome.evaluate(()=>!!document.querySelector('main')&&/SKU:\s*\d+/.test(document.querySelector('main').innerText)),options.pageTimeoutMs,'product details');
-  const opened=await chrome.evaluate(()=>{
-    const main=document.querySelector('main')??document.body;
-    const link=[...main.querySelectorAll('a,button')].find(e=>/^More options from/i.test(e.innerText.trim())||/New and Open-Box/i.test(e.innerText));
-    if(link){link.scrollIntoView({block:'center'});link.click();return true;}return false;
-  });
-  if(!opened)return [{...candidate,status:'unverified',reason:'Product offer selector was not found'}];
+  await chrome.wait(()=>chrome.evaluate(openBuyingOptions),options.pageTimeoutMs,'buying-options control');
   const end=Date.now()+options.pageTimeoutMs;
   let offers;
   while(Date.now()<end) {
-    offers=await chrome.evaluate(()=>[...document.querySelectorAll('a')].map(a=>({text:a.innerText,href:a.getAttribute('href')})).filter(a=>a.href?.includes('/openbox')));
+    offers=await chrome.evaluate(()=>[...document.querySelectorAll('a')].filter(a=>a.getAttribute('href')?.includes('/openbox')).map(a=>{const u=new URL(a.getAttribute('href'),location.href);return {path:u.pathname,condition:u.searchParams.get('condition')};}));
     if(offers.length)break;
     await new Promise(r=>setTimeout(r,350));
   }
   if(!offers?.length)return [{...candidate,status:'unverified',reason:'No open-box product links loaded'}];
-  const links=[...new Set(offers.map(o=>new URL(o.href,'https://www.bestbuy.com').href))].slice(0,options.conditionLimit);
+  const links=matchingOpenBoxLinks(candidate,offers).slice(0,options.conditionLimit);
+  if(!links.length)return [{...candidate,status:'unverified',reason:'No matching product open-box links loaded'}];
   const verified=[];
-  for(const url of links) {
+  for(const {url,sku} of links) {
     await chrome.go(url);
     const detail=await chrome.wait(async()=>{const p=await chrome.evaluate(extractOffer);return p.price!==null&&p.buyNew!==null?p:false;},options.pageTimeoutMs,'open-box purchase panel');
     if(detail.store!==candidate.regionName)throw new Error('Store changed during offer verification');
-    verified.push({...candidate,...classifyOffer(candidate,detail),url});
+    verified.push({...candidate,...classifyOffer({...candidate,sku},detail),url});
   }
   return verified;
 }
@@ -124,21 +137,21 @@ export async function scan(options) {
         const regionCandidates=[];
         for(const query of options.queries) {
           if(options.shouldStop?.())break;
-          let url=searchUrl(query);
+          let previousPage;
           for(let pageNo=1;pageNo<=options.pages;pageNo++) {
             log(`Search: ${region.name} / ${query} / page ${pageNo}`);
             try {
-              if(pageNo===1)await chrome.go(url);
+              await chrome.go(searchUrl(query,pageNo));
               const page=await readSearchPage(chrome,region,options);
+              confirmPageChange(previousPage,page,pageNo);
+              previousPage=page;
               const coverage=pageCoverage(page);
               result.coverage.push({region:region.name,query,page:pageNo,...coverage});
-              const candidates=page.cards.filter(c=>c.hasOptions&&c.minimum!==null&&c.url&&(!options.match||c.name.toLowerCase().includes(options.match.toLowerCase()))).map(c=>normalizeObservation(c,region,query));
+              const candidates=page.cards.filter(c=>c.hasOptions&&c.url&&(!options.match||c.name.toLowerCase().includes(options.match.toLowerCase()))).map(c=>normalizeObservation(c,region,query));
               regionCandidates.push(...candidates);
               result.candidates=mergeObservations([...result.candidates,...candidates]);
               await checkpoint();
-              if(pageNo===options.pages)break;
-              if(!await nextSearchPage(chrome,query))break;
-              await new Promise(r=>setTimeout(r,600));
+              if(page.noResults)break;
             }catch(e){result.coverage.push({region:region.name,query,page:pageNo,complete:false,reason:e.message});await checkpoint();break;}
           }
         }

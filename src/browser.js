@@ -8,6 +8,13 @@ export function applyRegionPreferences({storeId,zip}) {
   return true;
 }
 
+export function openBuyingOptions() {
+  const control=document.querySelector('[data-testid="more-buying-options-main-value-prop-button"]');
+  if(!control)return false;
+  control.scrollIntoView?.({block:'center'});
+  control.click();return true;
+}
+
 export function extractPage() {
   const text=e=>e?.innerText ?? e?.textContent ?? '';
   const amount=s=>{const m=String(s).match(/\$([\d,]+\.\d{2})/);return m?Number(m[1].replaceAll(',','')):null;};
@@ -30,7 +37,7 @@ export function extractPage() {
   });
   const next=[...document.querySelectorAll('a')].find(a=>/^(?:Next|Next Page|Go to next page)$/i.test((a.getAttribute('aria-label')||text(a)).trim()));
   const nextHref=next?.getAttribute('href');
-  return {store,zip:zipLink?text(zipLink).trim():null,cards,pricedCards:cards.filter(c=>c.current!==null).length,
+  return {store,zip:zipLink?text(zipLink).trim():null,page:typeof location==='undefined'?1:Number(new URLSearchParams(location.search).get('cp')??1),cards,pricedCards:cards.filter(c=>c.current!==null).length,
     nextUrl:nextHref?new URL(nextHref,'https://www.bestbuy.com').href:null,
     noResults:/No results found|Sorry, there are no results/i.test(text(document.querySelector('main'))),
   };

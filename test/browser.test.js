@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseHTML } from 'linkedom';
-import { extractPage, extractOffer, applyRegionPreferences } from '../src/browser.js';
+import { extractPage, extractOffer, applyRegionPreferences, openBuyingOptions } from '../src/browser.js';
 
 function withDocument(html, fn) {
   const { document }=parseHTML(html);
@@ -24,6 +24,15 @@ test('missing card prices remain incomplete instead of becoming zero', () => {
   assert.equal(result.cards[0].current,null);
   assert.equal(result.cards[0].minimum,null);
   assert.equal(result.pricedCards,0);
+});
+
+test('open the buying-options control even when Best Buy uses a div',()=>{
+  withDocument('<html><body><aside><div data-testid="more-buying-options-main-value-prop-button">New and Open-Box</div></aside></body></html>',()=>{
+    let opened=false;
+    document.querySelector('div').addEventListener('click',()=>{opened=true;});
+    assert.equal(openBuyingOptions(),true);
+    assert.equal(opened,true);
+  });
 });
 
 test('location preferences only change the store and destination ZIP',()=>{

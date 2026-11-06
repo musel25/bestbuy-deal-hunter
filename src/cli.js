@@ -5,7 +5,7 @@ import { homedir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Chrome } from './chrome.js';
-import { scan } from './scanner.js';
+import { scan, smokeAcceptance } from './scanner.js';
 import { selectQueries } from './domain.js';
 import { renderReport } from './report.js';
 import { extractPage, extractOffer } from './browser.js';
@@ -71,7 +71,7 @@ try {
   if(!extensionId) {
     try{const manifest=JSON.parse(await readFile(join(homedir(),'.config/google-chrome/NativeMessagingHosts/com.chromemcp.nativehost.json'),'utf8'));extensionId=manifest.allowed_origins?.[0]?.match(/^chrome-extension:\/\/([a-p]{32})\/$/)?.[1];}catch{/* optional optimization */}
   }
-  const queries=command==='smoke'?[config.smoke.query]:values.query??(values.all?Object.values(config.pool).flat():selectQueries(config.pool,state.cursor,config.defaults.queriesPerType));
+  const queries=values.query??(command==='smoke'?[config.smoke.query]:values.all?Object.values(config.pool).flat():selectQueries(config.pool,state.cursor,config.defaults.queriesPerType));
   const stamp=new Date().toISOString().replaceAll(':','-').replaceAll('.','-');
   const filename=join(directory,`${stamp}-${command}`);
   let stop=false;
@@ -85,6 +85,11 @@ try {
     extensionId,blockResources:!values['no-block'],pages:positive('pages',config.defaults.pages),
     verifyLimit:positive('verify',command==='smoke'?1:config.defaults.verifyLimit),pageTimeoutMs:positive('timeout',config.defaults.pageTimeoutMs),
     match:values.match??(command==='smoke'?config.smoke.match:undefined),save,log:message=>console.error(message),shouldStop:()=>stop});
+  if(command==='smoke') {
+    result.acceptance=smokeAcceptance(result,config.smoke.sku);
+    for(const check of result.acceptance)if(!check.found||!check.verifiedPrice)result.errors.push(`${check.regionId}: smoke target ${check.found?'was found but its price was not verified':'was not found within the scan limits'}`);
+    await save(result);
+  }
   process.removeListener('SIGINT',interrupt);process.removeListener('SIGTERM',interrupt);
   if(command==='scan'&&!values.query&&!values.all)await writeFile(join(directory,'state.json'),JSON.stringify({cursor:state.cursor+1})+'\n');
   const summary={report:`${filename}.md`,data:`${filename}.json`,coverage:result.coverage.map(c=>({region:c.region,page:c.page,priced:c.priced,total:c.total,complete:c.complete,reason:c.reason})),candidates:result.candidates.length,offers:result.offers.map(o=>({region:o.regionName,status:o.status,price:o.price,buyNew:o.buyNew,discount:o.discount,condition:o.condition,pickup:o.pickupStore,reason:o.reason})),errors:result.errors,cleanup:result.cleanup,resourceBlocking:result.resourceBlocking};

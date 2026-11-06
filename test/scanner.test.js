@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateLocation, pageCoverage, classifyOffer, verifyNextUrl, mergePageSnapshots } from '../src/scanner.js';
+import { validateLocation, pageCoverage, classifyOffer, verifyNextUrl, mergePageSnapshots, confirmPageChange, matchingOpenBoxLinks, smokeAcceptance } from '../src/scanner.js';
 import { Chrome, decodeToolResult } from '../src/chrome.js';
 import { runInNewContext } from 'node:vm';
 
@@ -29,6 +29,18 @@ test('keep prices from cards that the website unloads after scrolling',()=>{
   assert.equal(pageCoverage(merged).complete,true);
 });
 
+test('replaced or reordered DOM cards preserve all earlier page observations',()=>{
+  const first={cards:[{productId:'a',current:100},{productId:'b',current:null}],pricedCards:1};
+  const merged=mergePageSnapshots(first,{cards:[{productId:'c',current:300},{productId:'a',current:null}],pricedCards:1});
+  assert.deepEqual(merged.cards.map(c=>c.productId),['a','b','c']);
+  assert.equal(merged.cards[0].current,100);
+  assert.equal(pageCoverage(merged).complete,false);
+});
+
+test('an advertised option without its minimum price makes coverage incomplete',()=>{
+  assert.equal(pageCoverage({cards:[{current:100,hasOptions:true,minimum:null}],pricedCards:1}).complete,false);
+});
+
 test('a verified discount requires Buy New, matching SKU, seller, and selected price',()=>{
   const candidate={sku:'6629420',minimum:1015.99};
   const offer={sku:'6629420',seller:'Best Buy',buyNew:2299.99,price:1015.99,condition:'fair',available:true,pickupStore:'Culver City'};
@@ -37,6 +49,7 @@ test('a verified discount requires Buy New, matching SKU, seller, and selected p
   assert.equal(classifyOffer(candidate,{...offer,sku:'1234'}).status,'unverified');
   assert.equal(classifyOffer(candidate,{...offer,available:false}).status,'price-only');
   assert.equal(classifyOffer(candidate,{...offer,seller:null}).status,'unverified');
+  assert.equal(classifyOffer({...candidate,sku:null},offer).status,'unverified');
 });
 
 test('pagination rejects filters, different terms, and external URLs',()=>{
@@ -44,6 +57,26 @@ test('pagination rejects filters, different terms, and external URLs',()=>{
   assert.equal(verifyNextUrl('https://www.bestbuy.com/site/searchpage.jsp?st=asus+laptop&qp=condition~Open-Box','asus laptop'),false);
   assert.equal(verifyNextUrl('https://example.com/site/searchpage.jsp?st=asus+laptop','asus laptop'),false);
   assert.equal(verifyNextUrl('https://www.bestbuy.com/site/searchpage.jsp?st=g14','asus laptop'),false);
+});
+
+test('page transitions reject unchanged products and the wrong page number',()=>{
+  const previous={page:1,cards:[{productId:'a'},{productId:'b'}]};
+  assert.throws(()=>confirmPageChange(previous,{...previous,page:2},2),/unchanged/);
+  assert.throws(()=>confirmPageChange(previous,{page:1,cards:[{productId:'c'}]},2),/page/i);
+  assert.doesNotThrow(()=>confirmPageChange(previous,{page:2,cards:[{productId:'c'}]},2));
+});
+
+test('offer links must match the canonical product and provide the Best Buy SKU',()=>{
+  const offers=[{path:'/product/g14/JJGGLH72GT/sku/6629420/openbox',condition:'fair'},{path:'/product/another/OTHERKEY/sku/1234/openbox',condition:'fair'}];
+  const links=matchingOpenBoxLinks({productKey:'JJGGLH72GT'},offers);
+  assert.equal(links.length,1);
+  assert.equal(links[0].sku,'6629420');
+  assert.equal(links[0].url,'https://www.bestbuy.com/product/g14/JJGGLH72GT/sku/6629420/openbox?condition=fair');
+});
+
+test('a smoke run must find and verify the target in each requested region',()=>{
+  const checks=smokeAcceptance({regions:[{id:'otay-ranch'},{id:'hawthorne'}],candidates:[{regionId:'otay-ranch'}],offers:[{regionId:'otay-ranch',sku:'6629420',status:'price-only'}]},'6629420');
+  assert.deepEqual(checks,[{regionId:'otay-ranch',found:true,verifiedPrice:true},{regionId:'hawthorne',found:false,verifiedPrice:false}]);
 });
 
 test('decode MCP results without treating tool errors or malformed output as empty data',()=>{

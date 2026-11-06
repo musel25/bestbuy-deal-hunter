@@ -13,9 +13,12 @@ export function renderReport(run) {
     'The selected open-box price, Buy New price, and fulfillment text were read from the same product page. Pickup can be at a nearby store.', '',
     '| Product | Search region | Buy New | Open box | Discount | Condition | Pickup store |',
     '| --- | --- | ---: | ---: | ---: | --- | --- |'];
-  const verified=run.offers.filter(o=>o.status==='verified').sort((a,b)=>(b.discount??0)-(a.discount??0));
+  const threshold=run.limits?.minDiscount??50;
+  const verified=run.offers.filter(o=>o.status==='verified'&&o.discount>=threshold).sort((a,b)=>(b.discount??0)-(a.discount??0));
   for(const o of verified) lines.push(`| ${link(o)} | ${escape(o.regionName)} | ${dollars(o.buyNew)} | ${dollars(o.price)} | ${o.discount?.toFixed(2)??'—'}% | ${escape(o.condition)} | ${escape(o.pickupStore)} |`);
   if(!verified.length) lines.push('| No verified available offers | | | | | | |');
+  lines.push('', '## Near misses', '', `Verified available offers below the ${threshold}% target.`, '');
+  for(const o of run.offers.filter(o=>o.status==='verified'&&o.discount<threshold)) lines.push(`- ${link(o)} — ${escape(o.regionName)}; ${dollars(o.price)} versus Buy New ${dollars(o.buyNew)} (${o.discount.toFixed(2)}%); ${escape(o.condition)}; pickup ${escape(o.pickupStore)}.`);
   lines.push('', '## Prices without confirmed fulfillment', '');
   for(const o of run.offers.filter(o=>o.status!=='verified')) lines.push(`- ${link(o)} — ${escape(o.regionName)}; ${dollars(o.price)}; ${escape(o.status)}. ${escape(o.fulfillment??o.reason)}`);
   lines.push('', '## Advertised minima — unverified', '', 'These are search-card hints. They do not prove the Buy New price or local availability.', '');
