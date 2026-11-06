@@ -4,6 +4,17 @@
   "private": true,
   "description": "Scan local Best Buy open-box laptop and desktop offers against verified Buy New prices.",
   "type": "module",
-  "engines": { "node": ">=22" },
-  "scripts": { "test": "node --test", "check": "node --test" }
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test",
+    "check": "node --test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2"
+  },
+  "devDependencies": {
+    "linkedom": "^0.18.15"
+  }
 }

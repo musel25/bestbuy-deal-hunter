@@ -1,0 +1,13 @@
+{
+  "regions": [
+    {"id":"otay-ranch","name":"Otay Ranch","storeId":"1769","zip":"91915","preferred":true,"url":"https://stores.bestbuy.com/ca/chula-vista/2015-birch-rd-1769.html"},
+    {"id":"costa-mesa","name":"Costa Mesa","storeId":"119","zip":"92626","url":"https://stores.bestbuy.com/ca/costa-mesa/901-s-coast-dr-119.html"},
+    {"id":"hawthorne","name":"Hawthorne","storeId":"104","zip":"90250","url":"https://stores.bestbuy.com/ca/hawthorne.html"}
+  ],
+  "pool": {
+    "laptops": ["asus laptop","zephyrus g14","zephyrus g16","legion 7 laptop","predator helios neo 16s","legion pro laptop","rog strix g16","proart p16","yoga pro 9i","omen transcend laptop","omen max laptop","msi stealth laptop","alienware laptop"],
+    "desktops": ["legion tower","asus rog desktop","rog gm700","rog g700","cyberpowerpc gamer supreme","ibuypower trace","ibuypower element","omen 35l","omen 45l","predator orion"]
+  },
+  "defaults": {"pages":2,"queriesPerType":2,"verifyLimit":8,"minDiscount":50,"pageTimeoutMs":30000,"conditionLimit":3},
+  "smoke": {"query":"asus laptop","match":"Ryzen 9 270","sku":"6629420"}
+}
