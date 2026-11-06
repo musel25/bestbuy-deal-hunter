@@ -42,6 +42,11 @@ test('recover the retail SKU from the buying sheet even when only new offers are
   assert.deepEqual(paths.map(p=>p.condition),['fair','good','excellent']);
 });
 
+test('recover the retail SKU when Best Buy is the selected offer',()=>{
+  const paths=withDocument('<html><body><div data-testid="more-buying-options-sheet-content-container-content"><div data-testid="more-buying-options-driver-sku-condition-card">New<br>Sold by<br><button data-testid="mbo-add-to-cart-6629420">Add to cart</button></div></div></body></html>',()=>extractRetailOfferPaths('/product/g14/JJGGLH72GT'));
+  assert.equal(paths.length,3);
+});
+
 test('location preferences only change the store and destination ZIP',()=>{
   withDocument('<html><body></body></html>',()=>{
     const writes=[];

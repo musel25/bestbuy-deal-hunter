@@ -19,7 +19,7 @@ export function extractRetailOfferPaths(productPath) {
   const sheet=document.querySelector('[data-testid="more-buying-options-sheet-content-container-content"]');
   if(!sheet)return [];
   const paths=[];
-  for(const card of sheet.querySelectorAll('[data-testid="more-buying-options-sku-condition-card"]')) {
+  for(const card of sheet.querySelectorAll('[data-testid="more-buying-options-sku-condition-card"],[data-testid="more-buying-options-driver-sku-condition-card"]')) {
     const text=card.innerText??card.textContent??'';
     if(/Sold\s*&\s*shipped by/i.test(text))continue;
     const sku=card.querySelector('button[data-testid^="mbo-add-to-cart-"]')?.getAttribute('data-testid')?.match(/^mbo-add-to-cart-(\d+)$/)?.[1];
