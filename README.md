@@ -56,6 +56,8 @@ node src/cli.js --help
 
 Edit [config/search.json](config/search.json) to change the pool, stores, and limits. The primary laptop pool has the ten requested families. Separate pools hold productivity laptops, broad searches, and desktops. The preferences section records the 32GB RAM and GPU targets. These are guidance for the assistant's final ranking, not claims that every configuration exists. Exact hardware must be checked on the product page.
 
+The desktop pool includes Legion Tower 5/5i/7i, ROG GM700/G700, OMEN 35L/45L, CyberPowerPC Gamer Supreme/Gamer Xtreme, iBUYPOWER Trace/Element/Y40, MSI Aegis/Infinite, Predator Orion, Alienware Aurora, and Corsair Vengeance. The verification queue favors these families, 32GB RAM, and RTX 5070 Ti/5080/5090 title hints. It preserves other candidates. The final review checks the exact GPU and VRAM, power supply, cooling, motherboard, and upgrade options.
+
 Website searches apply no category, price, condition, availability, RAM, or GPU filters. They use the search term and normal pagination. The scanner waits for prices and scrolls cards into view. Missing prices produce incomplete coverage, never zero-dollar deals.
 
 ## Prices and reports

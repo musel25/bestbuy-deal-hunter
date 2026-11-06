@@ -24,6 +24,18 @@ One broad run had a local MCP fetch failure while entering the second Hawthorne 
 
 The displayed minimum and the existence of a priced open-box route do not establish local availability. Check the selected condition's current pickup/shipping text. No purchase availability is guaranteed by these historical observations.
 
+## Final reference recheck
+
+The final production verifier rechecked the G14 candidate found in the earlier broad ASUS search. It read the retail SKU from the buying sheet and checked Fair condition in all three regions. This was a targeted verification, not a repeat of all discovery pages.
+
+| Region | SKU | Fair price | Buy New | Discount | Fulfillment |
+| --- | --- | ---: | ---: | ---: | --- |
+| Otay Ranch / 91915 | 6629420 | $1,015.99 | $2,299.99 | 55.83% | Unavailable |
+| Costa Mesa / 92626 | 6629420 | $1,015.99 | $2,299.99 | 55.83% | Unavailable |
+| Hawthorne / 90250 | 6629420 | $1,015.99 | $2,299.99 | 55.83% | Unavailable |
+
+All three observations were classified as price-only. No available deal was claimed. Cleanup restored Otay Ranch and 91915 and reported no errors. The local JSON and Markdown files use the reference-final prefix in results/.
+
 ## Repeat
 
 ```bash

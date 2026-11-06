@@ -1,6 +1,6 @@
 import { Chrome } from './chrome.js';
 import { extractPage, extractOffer, applyRegionPreferences, openBuyingOptions, extractRetailOfferPaths } from './browser.js';
-import { discountPercent, normalizeObservation, mergeObservations, searchUrl } from './domain.js';
+import { discountPercent, normalizeObservation, mergeObservations, searchUrl, rankCandidates } from './domain.js';
 
 export function validateLocation(actual,region) {
   if(actual.store!==region.name) throw new Error(`Selected store mismatch: expected ${region.name}, got ${actual.store??'unknown'}`);
@@ -158,7 +158,7 @@ export async function scan(options) {
             }catch(e){result.coverage.push({region:region.name,query,page:pageNo,complete:false,reason:e.message});await checkpoint();break;}
           }
         }
-        const unique=mergeObservations(regionCandidates).sort((a,b)=>(b.hintDiscount??-Infinity)-(a.hintDiscount??-Infinity)).slice(0,options.verifyLimit);
+        const unique=rankCandidates(mergeObservations(regionCandidates),options.preferences).slice(0,options.verifyLimit);
         for(const candidate of unique) {
           log(`Verify: ${region.name} / ${candidate.name}`);
           try {result.offers.push(...await verifyCandidate(chrome,candidate,options));}

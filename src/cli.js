@@ -82,6 +82,7 @@ try {
     await writeFile(`${filename}.md`,renderReport(result));
   };
   const result=await scan({...config.defaults,endpoint,allRegions:config.regions,regions,queries,
+    preferences:{...config.preferences,premiumTerms:[...config.pool.laptops,...config.pool.productivity,...config.pool.desktops]},
     extensionId,blockResources:!values['no-block'],pages:positive('pages',config.defaults.pages),
     verifyLimit:positive('verify',command==='smoke'?1:config.defaults.verifyLimit),pageTimeoutMs:positive('timeout',config.defaults.pageTimeoutMs),
     match:values.match??(command==='smoke'?config.smoke.match:undefined),save,log:message=>console.error(message),shouldStop:()=>stop});

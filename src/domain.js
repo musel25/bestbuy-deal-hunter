@@ -45,3 +45,17 @@ export function mergeObservations(items) {
 export function selectQueries(pool, cursor=0, perType=2) {
   return [...new Set(Object.values(pool).flatMap(terms=>Array.from({length:Math.min(perType,terms.length)},(_,i)=>terms[(cursor*perType+i)%terms.length])))];
 }
+
+export function rankCandidates(items,preferences={}) {
+  const dense=value=>String(value??'').toLowerCase().replace(/\b(laptop|desktop|gaming)\b/g,'').replace(/[^a-z0-9]/g,'');
+  const premium=(preferences.premiumTerms??[]).map(dense).filter(Boolean);
+  const gpuTargets=(preferences.gpuTargets??[]).map(dense);
+  const score=item=>{
+    const name=dense(item.name);
+    const ram=Number(item.name?.match(/(\d+)\s*GB\s*(?:DDR\d\s*)?(?:RAM|Memory)/i)?.[1]??0);
+    return (item.hintDiscount??0)+(premium.some(term=>name.includes(term))?40:0)+
+      (gpuTargets.some(gpu=>name.includes(gpu))?100:0)+(ram>=(preferences.desktopRamGB??preferences.laptopRamGB??32)?10:0);
+  };
+  // Title specifications are queue hints. The product page still needs verification.
+  return [...items].sort((a,b)=>score(b)-score(a));
+}
