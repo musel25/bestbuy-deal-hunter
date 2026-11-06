@@ -1,0 +1,45 @@
+{
+  "regions": [
+    {"id":"otay-ranch","name":"Otay Ranch","storeId":"1769","zip":"91915","preferred":true,"url":"https://stores.bestbuy.com/ca/chula-vista/2015-birch-rd-1769.html"},
+    {"id":"costa-mesa","name":"Costa Mesa","storeId":"119","zip":"92626","url":"https://stores.bestbuy.com/ca/costa-mesa/901-s-coast-dr-119.html"},
+    {"id":"hawthorne","name":"Hawthorne","storeId":"104","zip":"90250","url":"https://stores.bestbuy.com/ca/hawthorne.html"}
+  ],
+  "pool": {
+    "laptops": ["zephyrus g14","zephyrus g16","legion 7 laptop","omen transcend 14","razer blade laptop","legion pro 7i","msi stealth 16","alienware 16x aurora","predator triton 14","proart p16"],
+    "productivity": ["dell xps 16","yoga pro 9i","omnibook ultra","galaxy book ultra"],
+    "broad": ["asus laptop","lenovo laptop","hp laptop","gaming desktop"],
+    "desktops": ["legion tower","legion tower 7i","rog gm700","rog g700","omen 35l","omen 45l","cyberpowerpc gamer supreme","cyberpowerpc gamer xtreme","ibuypower trace","ibuypower element","ibuypower y40","msi aegis","msi infinite","predator orion","alienware aurora desktop","corsair vengeance desktop"]
+  },
+  "defaults": {"pages":2,"queriesPerType":1,"verifyLimit":8,"minDiscount":50,"pageTimeoutMs":30000,"conditionLimit":3},
+  "preferences": {
+    "laptopRamGB":32,
+    "desktopRamGB":32,
+    "gpuTargets":["RTX 5070 Ti","RTX 5080","RTX 5090"],
+    "desktopFamilies":[
+      "Lenovo Legion Tower 5 / 5i / 7i",
+      "ASUS ROG GM700 / G700",
+      "HP OMEN 35L / 45L",
+      "CyberPowerPC Gamer Supreme / Gamer Xtreme",
+      "iBUYPOWER Trace / Element / Y40",
+      "MSI Aegis / Infinite",
+      "Acer Predator Orion",
+      "Alienware Aurora",
+      "Corsair Vengeance"
+    ],
+    "desktopChecks":["Exact GPU and VRAM","RAM capacity and expansion","Power supply model and capacity","Cooling","Motherboard and case upgrade options","Open-box accessories and condition"],
+    "laptops": [
+      {"family":"ASUS Zephyrus G14","gpuHint":"RTX 5060–5070 Ti"},
+      {"family":"ASUS Zephyrus G16","gpuHint":"RTX 5070 Ti–5080"},
+      {"family":"Lenovo Legion 7 / 7i","gpuHint":"RTX 5060–5070","displayHint":"OLED"},
+      {"family":"HP OMEN Transcend 14","gpuHint":"RTX 5060–5070"},
+      {"family":"Razer Blade 14 / 16","gpuHint":"RTX 5070 or better"},
+      {"family":"Lenovo Legion Pro 7i","gpuHint":"RTX 5070 Ti–5080"},
+      {"family":"MSI Stealth 16 AI+","gpuHint":"RTX 5070 Ti–5080"},
+      {"family":"Alienware 16X Aurora","gpuHint":"RTX 5070"},
+      {"family":"Acer Predator Triton 14 AI","gpuHint":"RTX 5070"},
+      {"family":"ASUS ProArt P16","gpuHint":"RTX 5070 or better"}
+    ],
+    "note":"User-supplied configuration targets. Verify exact specifications. These are ranking guidance, not site filters or claims that every configuration exists."
+  },
+  "smoke": {"query":"asus laptop","match":"Ryzen 9 270","sku":"6629420"}
+}
