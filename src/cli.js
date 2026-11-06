@@ -68,7 +68,7 @@ try {
   let state={cursor:0};
   try{state=JSON.parse(await readFile(join(directory,'state.json'),'utf8'));}catch{/* first run */}
   let extensionId=values['extension-id']??process.env.CHROME_MCP_EXTENSION_ID;
-  if(!extensionId&&!values['no-block']) {
+  if(!extensionId) {
     try{const manifest=JSON.parse(await readFile(join(homedir(),'.config/google-chrome/NativeMessagingHosts/com.chromemcp.nativehost.json'),'utf8'));extensionId=manifest.allowed_origins?.[0]?.match(/^chrome-extension:\/\/([a-p]{32})\/$/)?.[1];}catch{/* optional optimization */}
   }
   const queries=command==='smoke'?[config.smoke.query]:values.query??(values.all?Object.values(config.pool).flat():selectQueries(config.pool,state.cursor,config.defaults.queriesPerType));
@@ -82,7 +82,7 @@ try {
     await writeFile(`${filename}.md`,renderReport(result));
   };
   const result=await scan({...config.defaults,endpoint,allRegions:config.regions,regions,queries,
-    extensionId:values['no-block']?undefined:extensionId,pages:positive('pages',config.defaults.pages),
+    extensionId,blockResources:!values['no-block'],pages:positive('pages',config.defaults.pages),
     verifyLimit:positive('verify',command==='smoke'?1:config.defaults.verifyLimit),pageTimeoutMs:positive('timeout',config.defaults.pageTimeoutMs),
     match:values.match??(command==='smoke'?config.smoke.match:undefined),save,log:message=>console.error(message),shouldStop:()=>stop});
   process.removeListener('SIGINT',interrupt);process.removeListener('SIGTERM',interrupt);

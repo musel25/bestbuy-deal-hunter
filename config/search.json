@@ -5,9 +5,11 @@
     {"id":"hawthorne","name":"Hawthorne","storeId":"104","zip":"90250","url":"https://stores.bestbuy.com/ca/hawthorne.html"}
   ],
   "pool": {
-    "laptops": ["asus laptop","zephyrus g14","zephyrus g16","legion 7 laptop","predator helios neo 16s","legion pro laptop","rog strix g16","proart p16","yoga pro 9i","omen transcend laptop","omen max laptop","msi stealth laptop","alienware laptop"],
+    "laptops": ["zephyrus g14","zephyrus g16","legion 7 laptop","omen transcend 14","razer blade laptop","legion pro 7i","msi stealth 16","alienware 16x aurora","predator triton 14","proart p16"],
+    "productivity": ["dell xps 16","yoga pro 9i","omnibook ultra","galaxy book ultra"],
+    "broad": ["asus laptop","lenovo laptop","hp laptop","gaming desktop"],
     "desktops": ["legion tower","asus rog desktop","rog gm700","rog g700","cyberpowerpc gamer supreme","ibuypower trace","ibuypower element","omen 35l","omen 45l","predator orion"]
   },
-  "defaults": {"pages":2,"queriesPerType":2,"verifyLimit":8,"minDiscount":50,"pageTimeoutMs":30000,"conditionLimit":3},
+  "defaults": {"pages":2,"queriesPerType":1,"verifyLimit":8,"minDiscount":50,"pageTimeoutMs":30000,"conditionLimit":3},
   "smoke": {"query":"asus laptop","match":"Ryzen 9 270","sku":"6629420"}
 }

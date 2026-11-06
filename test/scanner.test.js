@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateLocation, pageCoverage, classifyOffer, verifyNextUrl, mergePageSnapshots } from '../src/scanner.js';
 import { Chrome, decodeToolResult } from '../src/chrome.js';
+import { runInNewContext } from 'node:vm';
 
 const region={id:'otay-ranch',name:'Otay Ranch',zip:'91915'};
 
@@ -77,4 +78,18 @@ test('navigation uses the native tab update when background page timers are susp
   chrome.evaluate=async()=>navigated;
   chrome.wait=async read=>{if(!await read())throw new Error('Navigation did not start');};
   await chrome.go('https://www.bestbuy.com/site/store-locator');
+});
+
+test('background evaluation uses the extension helper without a second debugger connection',async()=>{
+  const chrome=new Chrome();chrome.tabId=88;chrome.helperTab=99;chrome.debugTabId=88;
+  chrome.call=async(name,{tabId,code})=>{
+    assert.equal(tabId,99);
+    const extension={debugger:{sendCommand:async(target,method,params)=>{
+      assert.equal(target.tabId,88);assert.equal(method,'Runtime.evaluate');
+      return {result:{value:await runInNewContext(params.expression)}};
+    }}};
+    return new Function('chrome',`return (async()=>{${code}})()`)(extension);
+  };
+  const result=await chrome.evaluate(value=>({value}),'quoted " text');
+  assert.equal(result.value,'quoted " text');
 });

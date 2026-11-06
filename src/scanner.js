@@ -113,7 +113,7 @@ export async function scan(options) {
     await chrome.connect();
     chrome.tabId=await chrome.createTab('about:blank');
     if(options.extensionId) {
-      try {await chrome.blockResources(options.extensionId);result.resourceBlocking='images, fonts, and media blocked in scan tab';}
+      try {await chrome.prepareSession(options.extensionId,options.blockResources!==false);result.resourceBlocking=options.blockResources===false?'disabled; background session enabled':'images, fonts, and media blocked in scan tab; background session enabled';}
       catch(e){result.resourceBlocking=`unavailable: ${e.message}`;}
     }
     for(const region of options.regions) {
