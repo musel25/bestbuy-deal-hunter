@@ -1,5 +1,5 @@
 import { Chrome } from './chrome.js';
-import { extractPage, extractOffer, applyRegionPreferences, openBuyingOptions } from './browser.js';
+import { extractPage, extractOffer, applyRegionPreferences, openBuyingOptions, extractRetailOfferPaths } from './browser.js';
 import { discountPercent, normalizeObservation, mergeObservations, searchUrl } from './domain.js';
 
 export function validateLocation(actual,region) {
@@ -90,14 +90,15 @@ async function readSearchPage(chrome,region,options) {
   return page;
 }
 
-async function verifyCandidate(chrome,candidate,options) {
+export async function verifyCandidate(chrome,candidate,options) {
   await chrome.go(candidate.url);
   await chrome.wait(()=>chrome.evaluate(()=>!!document.querySelector('main')&&/SKU:\s*\d+/.test(document.querySelector('main').innerText)),options.pageTimeoutMs,'product details');
   await chrome.wait(()=>chrome.evaluate(openBuyingOptions),options.pageTimeoutMs,'buying-options control');
   const end=Date.now()+options.pageTimeoutMs;
   let offers;
   while(Date.now()<end) {
-    offers=await chrome.evaluate(()=>[...document.querySelectorAll('a')].filter(a=>a.getAttribute('href')?.includes('/openbox')).map(a=>{const u=new URL(a.getAttribute('href'),location.href);return {path:u.pathname,condition:u.searchParams.get('condition')};}));
+    const productPath=new URL(candidate.url).pathname;
+    offers=await chrome.evaluate(extractRetailOfferPaths,productPath);
     if(offers.length)break;
     await new Promise(r=>setTimeout(r,350));
   }
@@ -106,10 +107,12 @@ async function verifyCandidate(chrome,candidate,options) {
   if(!links.length)return [{...candidate,status:'unverified',reason:'No matching product open-box links loaded'}];
   const verified=[];
   for(const {url,sku} of links) {
-    await chrome.go(url);
-    const detail=await chrome.wait(async()=>{const p=await chrome.evaluate(extractOffer);return p.price!==null&&p.buyNew!==null?p:false;},options.pageTimeoutMs,'open-box purchase panel');
-    if(detail.store!==candidate.regionName)throw new Error('Store changed during offer verification');
-    verified.push({...candidate,...classifyOffer({...candidate,sku},detail),url});
+    try {
+      await chrome.go(url);
+      const detail=await chrome.wait(async()=>{const p=await chrome.evaluate(extractOffer);return p.price!==null&&p.buyNew!==null&&p.store&&p.fulfillment?p:false;},options.pageTimeoutMs,'open-box purchase panel and fulfillment');
+      if(detail.store!==candidate.regionName)throw new Error('Store changed during offer verification');
+      verified.push({...candidate,...classifyOffer({...candidate,sku},detail),url});
+    }catch(e){verified.push({...candidate,status:'unverified',condition:new URL(url).searchParams.get('condition'),reason:e.message,url});}
   }
   return verified;
 }

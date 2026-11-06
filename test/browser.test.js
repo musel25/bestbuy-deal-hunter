@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseHTML } from 'linkedom';
-import { extractPage, extractOffer, applyRegionPreferences, openBuyingOptions } from '../src/browser.js';
+import { extractPage, extractOffer, applyRegionPreferences, openBuyingOptions, extractRetailOfferPaths } from '../src/browser.js';
 
 function withDocument(html, fn) {
   const { document }=parseHTML(html);
@@ -35,6 +35,13 @@ test('open the buying-options control even when Best Buy uses a div',()=>{
   });
 });
 
+test('recover the retail SKU from the buying sheet even when only new offers are shown',()=>{
+  const paths=withDocument(`<html><body><div data-testid="more-buying-options-sheet-content-container-content"><div data-testid="more-buying-options-sku-condition-card">New<br>Sold by<br><button data-testid="mbo-add-to-cart-6629420">Add to cart</button></div><div data-testid="more-buying-options-sku-condition-card">New<br>Sold &amp; shipped by<br>PC Heaven<button data-testid="mbo-add-to-cart-12974438">Add to cart</button></div></div></body></html>`,()=>extractRetailOfferPaths('/product/g14/JJGGLH72GT'));
+  assert.equal(paths.length,3);
+  assert.equal(paths[0].path,'/product/g14/JJGGLH72GT/sku/6629420/openbox');
+  assert.deepEqual(paths.map(p=>p.condition),['fair','good','excellent']);
+});
+
 test('location preferences only change the store and destination ZIP',()=>{
   withDocument('<html><body></body></html>',()=>{
     const writes=[];
@@ -56,4 +63,11 @@ test('verify Buy New and Fair price from purchase panel without recommendation p
   assert.equal(result.condition,'fair');
   assert.equal(result.pickupStore,'Culver City');
   assert.equal(result.shipping,'unavailable');
+});
+
+test('retain an explicit unavailable open-box price without claiming inventory',()=>{
+  const result=withDocument('<html><body><button aria-label="Your Store: Otay Ranch"></button><main><h1>G14 Open Box</h1><p>SKU: 6629420</p><p>Sold by<br>Best Buy</p><aside>Open-Box Fair<br>$1,015.99<br>Buy New:<br>$2,299.99<br>Unavailable<br>Sold by<br>Return &amp; Exchange Policy</aside></main></body></html>',extractOffer);
+  assert.equal(result.fulfillment,'Unavailable');
+  assert.equal(result.available,false);
+  assert.equal(result.price,1015.99);
 });

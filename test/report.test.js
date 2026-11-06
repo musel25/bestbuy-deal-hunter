@@ -19,3 +19,8 @@ test('offers below the target discount are listed as near misses',()=>{
   assert.ok(report.indexOf('## Near misses')>report.indexOf('## Verified available offers'));
   assert.ok(report.indexOf('Below target')>report.indexOf('## Near misses'));
 });
+
+test('a failed offer verification cannot produce a completed report',()=>{
+  const report=renderReport({startedAt:'2026-11-06',queries:[],regions:[],limits:{},coverage:[],errors:[],candidates:[],cleanup:{},offers:[{name:'G14',status:'unverified',reason:'Purchase panel did not load'}]});
+  assert.match(report,/Incomplete/);
+});

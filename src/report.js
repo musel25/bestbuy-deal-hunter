@@ -2,8 +2,12 @@ const escape=value=>String(value??'—').replaceAll('&','&amp;').replaceAll('<',
 const dollars=value=>typeof value==='number'?`$${value.toFixed(2)}`:'—';
 const link=item=>{try {const u=new URL(item.url);return u.origin==='https://www.bestbuy.com'?`[${escape(item.name)}](${u.href.replaceAll('(','%28').replaceAll(')','%29')})`:escape(item.name);}catch{return escape(item.name);}};
 
+export function isIncomplete(run) {
+  return run.coverage.some(c=>!c.complete)||run.errors.length>0||run.offers.some(o=>o.status==='unverified');
+}
+
 export function renderReport(run) {
-  const incomplete=run.coverage.some(c=>!c.complete)||run.errors.length>0;
+  const incomplete=isIncomplete(run);
   const lines=[`# Best Buy deal search`, '', `Started: ${escape(run.startedAt)}`, '',
     `${incomplete?'Incomplete':'Completed within stated limits'}. All prices are before tax.`, '',
     `Queries: ${(run.queries??[]).map(escape).join(', ')}`, '',

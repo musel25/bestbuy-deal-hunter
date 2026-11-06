@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { Chrome } from './chrome.js';
 import { scan, smokeAcceptance } from './scanner.js';
 import { selectQueries } from './domain.js';
-import { renderReport } from './report.js';
+import { renderReport, isIncomplete } from './report.js';
 import { extractPage, extractOffer } from './browser.js';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
@@ -94,5 +94,5 @@ try {
   if(command==='scan'&&!values.query&&!values.all)await writeFile(join(directory,'state.json'),JSON.stringify({cursor:state.cursor+1})+'\n');
   const summary={report:`${filename}.md`,data:`${filename}.json`,coverage:result.coverage.map(c=>({region:c.region,page:c.page,priced:c.priced,total:c.total,complete:c.complete,reason:c.reason})),candidates:result.candidates.length,offers:result.offers.map(o=>({region:o.regionName,status:o.status,price:o.price,buyNew:o.buyNew,discount:o.discount,condition:o.condition,pickup:o.pickupStore,reason:o.reason})),errors:result.errors,cleanup:result.cleanup,resourceBlocking:result.resourceBlocking};
   console.log(JSON.stringify(summary,null,2));
-  if(result.errors.length||result.coverage.some(c=>!c.complete))process.exitCode=2;
+  if(isIncomplete(result))process.exitCode=2;
 }finally{await lock.close();await unlink(lockPath);}
