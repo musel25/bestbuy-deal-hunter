@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseHTML } from 'linkedom';
-import { extractPage, extractOffer } from '../src/browser.js';
+import { extractPage, extractOffer, fillInput } from '../src/browser.js';
 
 function withDocument(html, fn) {
   const { document }=parseHTML(html);
@@ -24,6 +24,17 @@ test('missing card prices remain incomplete instead of becoming zero', () => {
   assert.equal(result.cards[0].current,null);
   assert.equal(result.cards[0].minimum,null);
   assert.equal(result.pricedCards,0);
+});
+
+test('ZIP input changes notify the application before the form is submitted',()=>{
+  withDocument('<html><body><form><input id="zip" value="90703"></form></body></html>',()=>{
+    let applicationValue='90703';
+    const input=document.querySelector('#zip');
+    input.addEventListener('input',()=>{applicationValue=input.value;});
+    fillInput({selector:'#zip',value:'91915'});
+    assert.equal(applicationValue,'91915');
+    assert.equal(input.value,'91915');
+  });
 });
 
 test('verify Buy New and Fair price from purchase panel without recommendation prices', () => {

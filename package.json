@@ -9,7 +9,10 @@
   },
   "scripts": {
     "test": "node --test",
-    "check": "node --test"
+    "check": "node --check src/cli.js && node --check src/scanner.js && node --check src/chrome.js && node --test",
+    "scan": "node src/cli.js scan",
+    "smoke": "node src/cli.js smoke",
+    "inspect": "node src/cli.js inspect"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2"

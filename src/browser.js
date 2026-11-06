@@ -1,4 +1,15 @@
 // These functions are serialized into the browser. Keep each one self-contained.
+export function fillInput({selector,value}) {
+  const input=document.querySelector(selector);
+  if(!input)throw new Error('Input was not found');
+  const setter=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input),'value')?.set;
+  if(setter)setter.call(input,value);else input.value=value;
+  const EventClass=input.ownerDocument.defaultView.Event;
+  input.dispatchEvent(new EventClass('input',{bubbles:true}));
+  input.dispatchEvent(new EventClass('change',{bubbles:true}));
+  return input.value===value;
+}
+
 export function extractPage() {
   const text=e=>e?.innerText ?? e?.textContent ?? '';
   const amount=s=>{const m=String(s).match(/\$([\d,]+\.\d{2})/);return m?Number(m[1].replaceAll(',','')):null;};
